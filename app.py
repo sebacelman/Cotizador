@@ -40,7 +40,7 @@ def obtener_cotizaciones_historicas_api():
 def cargar_arquitectura_datos():
     try:
         # A. Procesar Compras (Autodetecta el separador y omite filas corruptas)
-        df_compras = pd.read_csv('Ultima_compra.csv', sep=None, engine='python', on_bad_lines='skip')
+        df_compras = pd.read_csv('Ultima_Compra.csv', sep=None, engine='python', on_bad_lines='skip')
         df_compras['FecCreacion'] = pd.to_datetime(df_compras['FecCreacion'], errors='coerce')
         df_compras = df_compras.dropna(subset=['FecCreacion']).sort_values('FecCreacion')
         
