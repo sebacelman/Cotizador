@@ -1,6 +1,10 @@
 [theme]
 primaryColor = "#2563EB"
-backgroundColor = "#F8FAFC"
-secondaryBackgroundColor = "#0F172A"
-textColor = "#1E293B"
+backgroundColor = "#FFFFFF"            # Fondo principal blanco
+secondaryBackgroundColor = "#0F172A"   # Fondo del sidebar oscuro (Azul petróleo)
+textColor = "#1E293B"                  # Texto principal oscuro
 font = "sans serif"
+
+# --- ADICIÓN CRÍTICA ---
+[server]
+headless = true
