@@ -40,7 +40,7 @@ def cargar_arquitectura_datos():
     
     try:
         # A. Procesar Compras y Materiales (SAP)
-        df_compras = pd.read_csv(url_base + ID_COMPRAS, sep=';')
+        df_compras = pd.read_csv(url_base + ID_COMPRAS, sep=',')
         df_compras['FecCreacion'] = pd.to_datetime(df_compras['FecCreacion'])
         df_compras = df_compras.sort_values('FecCreacion')
         
