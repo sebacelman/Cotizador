@@ -59,8 +59,8 @@ def cargar_arquitectura_datos():
         df_mat_maestro = df_mat_maestro.rename(columns={'CodMaterial': 'Codigo', 'DescMaterial': 'Descripcion'})
         df_mat_maestro = df_mat_maestro[['Codigo', 'Descripcion', 'Costo_Unitario']]
         
-        # C. Procesar Libro de Configuración Manual (Cofiguracion_Overhaul.xlsx)
-        archivo_excel = 'Cofiguracion_Overhaul.xlsx'
+        # C. Procesar Libro de Configuración Manual (Configuracion_Overhaul.xlsx)
+        archivo_excel = 'Configuracion_Overhaul.xlsx'
         df_tareas_base = pd.read_excel(archivo_excel, sheet_name='Tareas_Base')
         df_comp_mayores = pd.read_excel(archivo_excel, sheet_name='Componentes_Mayores')
         
@@ -70,7 +70,7 @@ def cargar_arquitectura_datos():
         df_hh_maestro = pd.read_excel(archivo_excel, sheet_name='Maestra_HH')
         df_hh_maestro = df_hh_maestro.rename(columns={'Codigo_HH': 'Codigo', 'Descripcion_HH': 'Descripcion', 'Tarifa_Unitaria': 'Costo_Unitario'})
         
-        # Lector adaptable para la maestra de componentes (si existe la pestaña, la usa; si no, genera mapeo directo)
+        # Lector adaptable para la maestra de componentes
         xl = pd.ExcelFile(archivo_excel)
         if 'Maestra_Componentes' in xl.sheet_names:
             df_maestra_componentes = pd.read_excel(archivo_excel, sheet_name='Maestra_Componentes')
@@ -167,7 +167,6 @@ with tab3:
 
 # --- 5. CÁLCULO DE COMPONENTES MAYORES (MIXTO MATERIAL/SERVICIO/HH) ---
 for comp_padre in componentes_seleccionados:
-    # Soporte adaptable para enlace por ID o por Texto Directo
     if not df_maestra_componentes.empty:
         comp_info = df_maestra_componentes[df_maestra_componentes['Nombre_Pantalla'] == comp_padre]
         id_comp = comp_info.iloc[0]['ID_Componente'] if not comp_info.empty else comp_padre
@@ -207,7 +206,6 @@ if detalles_presupuesto:
     total_srv = df_resumen[df_resumen["Tipo"]=="Servicio"]["Subtotal"].sum()
     total_hh = df_resumen[df_resumen["Tipo"]=="HH"]["Subtotal"].sum()
     
-    # Renderizado de Tarjetas de Control
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
     with col_kpi1: st.markdown(f'<div class="kpi-card" style="border-color: #2563EB;"><div class="kpi-title">Costo Total Estimado</div><div class="kpi-value" style="color: #2563EB;">USD {costo_total:,.2f}</div></div>', unsafe_allow_html=True)
     with col_kpi2: st.markdown(f'<div class="kpi-card" style="border-color: #10B981;"><div class="kpi-title">Materiales (SAP)</div><div class="kpi-value" style="color: #10B981;">USD {total_mat:,.2f}</div></div>', unsafe_allow_html=True)
