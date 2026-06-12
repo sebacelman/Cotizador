@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from fpdf import FPDF
 import datetime
+import urllib.request
+import json
 
 # --- CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="Planificador Ruston", layout="wide", page_icon="⚙️")
@@ -15,61 +17,62 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- IDs DE GOOGLE DRIVE ---
-ID_MATERIALES = "1oCH6HVybfCC9FUvLWG3KNPyq93AdQAqR"
-ID_COMPRAS = "1Sma0iotqYpTIESFSfwB7dJqAGSYxJLar"
-ID_CONFIG = "1MB7_IcBRk7Iokt6FTAMByv4Tm53ZBZtZ"
-
-# --- 1. CONEXIÓN API DÓLAR ---
+# --- 1. CONEXIÓN API DÓLAR (BLINDADA) ---
 @st.cache_data(ttl=3600)
 def obtener_cotizaciones_historicas_api():
     url = "https://api.argentinadatos.com/v1/cotizaciones/dolares/oficial"
     try:
-        df_tc = pd.read_json(url)
+        # Usamos urllib con User-Agent para evitar que la API bloquee a Streamlit
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+        
+        df_tc = pd.DataFrame(data)
         df_tc['fecha'] = pd.to_datetime(df_tc['fecha'])
         df_tc = df_tc[['fecha', 'venta']].rename(columns={'venta': 'Cotizacion'}).sort_values('fecha')
         return df_tc
-    except Exception as e:
-        st.error(f"Error con la API de Dólar: {e}")
+    except Exception:
+        # Falla silenciosa: si la API se cae, retorna None para usar el plan B
         return None
 
-# --- 2. MOTOR DE DATOS CENTRAL ---
+# --- 2. MOTOR DE DATOS CENTRAL (LECTURA LOCAL) ---
 @st.cache_data(ttl=600)
 def cargar_arquitectura_datos():
-    url_base = "https://drive.google.com/uc?export=download&id="
-    
     try:
-        # A. Procesar Compras y Materiales (SAP)
-        df_compras = pd.read_csv(url_base + ID_COMPRAS, sep=',')
-        df_compras['FecCreacion'] = pd.to_datetime(df_compras['FecCreacion'])
-        df_compras = df_compras.sort_values('FecCreacion')
+        # A. Procesar Compras (Autodetecta el separador y omite filas corruptas)
+        df_compras = pd.read_csv('Ultima_compra.csv', sep=None, engine='python', on_bad_lines='skip')
+        df_compras['FecCreacion'] = pd.to_datetime(df_compras['FecCreacion'], errors='coerce')
+        df_compras = df_compras.dropna(subset=['FecCreacion']).sort_values('FecCreacion')
         
+        # B. Aplicar Tipo de Cambio
         df_tc = obtener_cotizaciones_historicas_api()
         if df_tc is not None:
             df_compras = pd.merge_asof(df_compras, df_tc, left_on='FecCreacion', right_on='fecha', direction='backward')
             df_compras['Costo_Unitario'] = np.where(df_compras['Moneda'] == 'USD', df_compras['ValorUnidad'], df_compras['ValorUnidad'] / df_compras['Cotizacion'])
         else:
+            st.warning("⚠️ La API del BCRA está inactiva. Usando Tipo de Cambio fijo referencial (1000 ARS/USD).")
             df_compras['Costo_Unitario'] = np.where(df_compras['Moneda'] == 'USD', df_compras['ValorUnidad'], df_compras['ValorUnidad'] / 1000)
             
         df_compras = df_compras.sort_values('FecCreacion', ascending=False)
         df_mat_precios = df_compras.drop_duplicates(subset=['CodMaterial'], keep='first').copy()
         
-        df_textos = pd.read_csv(url_base + ID_MATERIALES, sep=';').drop_duplicates(subset=['CodMaterial'], keep='last')
+        # C. Procesar Textos de Materiales
+        df_textos = pd.read_csv('materiales.csv', sep=None, engine='python', on_bad_lines='skip').drop_duplicates(subset=['CodMaterial'], keep='last')
         df_mat_maestro = pd.merge(df_mat_precios, df_textos[['CodMaterial', 'DescMaterial']], on='CodMaterial', how='left')
         df_mat_maestro = df_mat_maestro.rename(columns={'CodMaterial': 'Codigo', 'DescMaterial': 'Descripcion'})
         df_mat_maestro = df_mat_maestro[['Codigo', 'Descripcion', 'Costo_Unitario']]
         
-        # B. Procesar Libro de Configuración Manual (Excel)
-        df_tareas_base = pd.read_excel(url_base + ID_CONFIG, sheet_name='Tareas_Base')
-        df_comp_mayores = pd.read_excel(url_base + ID_CONFIG, sheet_name='Componentes_Mayores')
-        df_srv_maestro = pd.read_excel(url_base + ID_CONFIG, sheet_name='Maestra_Servicios')
-        df_maestra_componentes = pd.read_excel(url_base + ID_CONFIG, sheet_name='Maestra_Componentes')
+        # D. Procesar Libro de Configuración Manual (Excel)
+        df_tareas_base = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Tareas_Base')
+        df_comp_mayores = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Componentes_Mayores')
+        df_srv_maestro = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Maestra_Servicios')
+        df_maestra_componentes = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Maestra_Componentes')
         
         df_srv_maestro = df_srv_maestro.rename(columns={'Codigo_Servicio': 'Codigo', 'Descripcion_Servicio': 'Descripcion', 'Tarifa_Unitaria': 'Costo_Unitario'})
         
         return df_mat_maestro, df_srv_maestro, df_tareas_base, df_comp_mayores, df_maestra_componentes
     except Exception as e:
-        st.error(f"Error al descargar o leer los archivos de Google Drive. Asegúrate de que estén compartidos como 'Cualquier persona con el enlace'. Detalle: {e}")
+        st.error(f"Error procesando los datos. Verifica que los 3 archivos estén en GitHub. Detalle técnico: {e}")
         st.stop()
 
 # Cargar las tablas maestras
@@ -87,7 +90,7 @@ with st.sidebar:
     intervencion_torpedo = st.toggle("Overhaul de Torpedo", value=False)
 
 st.header("Cotizador de Mantenimiento Mayor")
-st.caption(f"Fecha de simulación: {datetime.date.today().strftime('%d de %B, %Y')} | Origen de datos: SAP / DolarAPI")
+st.caption(f"Fecha de simulación: {datetime.date.today().strftime('%d de %B, %Y')} | Origen de datos: SAP / Repositorio Interno")
 
 detalles_presupuesto = []
 
