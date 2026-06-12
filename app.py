@@ -5,7 +5,23 @@ from fpdf import FPDF
 import datetime
 import urllib.request
 import json
-
+# --- CSS PARA CORREGIR EL CONTRASTE DEL SIDEBAR ---
+st.markdown("""
+    <style>
+    /* Forzar texto blanco en el sidebar */
+    [data-testid="stSidebar"] {
+        color: white;
+    }
+    [data-testid="stSidebar"] div, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
+        color: white !important;
+    }
+    /* Asegurar que los botones del sidebar también se vean bien */
+    [data-testid="stSidebar"] .stButton button {
+        color: white;
+        background-color: #2563EB;
+    }
+    </style>
+""", unsafe_allow_html=True)
 # --- CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="Planificador Ruston", layout="wide", page_icon="⚙️")
 
