@@ -32,7 +32,7 @@ def obtener_cotizaciones_historicas_api():
     except Exception:
         return None
 
-# --- 2. MOTOR DE DATOS CENTRAL (NOMBRES CORREGIDOS) ---
+# --- 2. MOTOR DE DATOS CENTRAL ---
 @st.cache_data(ttl=600)
 def cargar_arquitectura_datos():
     try:
@@ -61,29 +61,40 @@ def cargar_arquitectura_datos():
         
         # C. Procesar Libro de Configuración Manual (Configuracion_Overhaul.xlsx)
         archivo_excel = 'Configuracion_Overhaul.xlsx'
+        
+        # Tareas Base
         df_tareas_base = pd.read_excel(archivo_excel, sheet_name='Tareas_Base')
+        df_tareas_base.columns = df_tareas_base.columns.str.strip()
+        
+        # Componentes Mayores
         df_comp_mayores = pd.read_excel(archivo_excel, sheet_name='Componentes_Mayores')
+        df_comp_mayores.columns = df_comp_mayores.columns.str.strip()
         
+        # Maestra de Servicios
         df_srv_maestro = pd.read_excel(archivo_excel, sheet_name='Maestra_servicio')
-        df_srv_maestro = df_srv_maestro.rename(columns={'Codigo_Servicio': 'Codigo', 'Descripcion_Servicio': 'Descripcion', 'Tarifa_Unitaria': 'Costo_Unitario'})
+        df_srv_maestro.columns = df_srv_maestro.columns.str.strip()
+        df_srv_maestro = df_srv_maestro.rename(columns={
+            'Codigo_Servicio': 'Codigo', 
+            'Descripcion_Servicio': 'Descripcion', 
+            'Tarifa_Unitaria': 'Costo_Unitario'
+        })
         
+        # Maestra de HH
         df_hh_maestro = pd.read_excel(archivo_excel, sheet_name='Maestra_HH')
-        df_hh_maestro = df_hh_maestro.rename(columns={'Codigo_HH': 'Codigo', 'Descripcion_HH': 'Descripcion', 'Tarifa_Unitaria': 'Costo_Unitario'})
+        df_hh_maestro.columns = df_hh_maestro.columns.str.strip()
+        df_hh_maestro = df_hh_maestro.rename(columns={
+            'Codigo_HH': 'Codigo', 
+            'Descripcion_Servicio': 'Descripcion',  # Ajustado a como lo nombraste en tu Excel
+            'Tarifa_Unitaria': 'Costo_Unitario'
+        })
         
-        # Lector adaptable para la maestra de componentes
-        xl = pd.ExcelFile(archivo_excel)
-        if 'Maestra_Componentes' in xl.sheet_names:
-            df_maestra_componentes = pd.read_excel(archivo_excel, sheet_name='Maestra_Componentes')
-        else:
-            df_maestra_componentes = pd.DataFrame(columns=['ID_Componente', 'Nombre_Pantalla'])
-        
-        return df_mat_maestro, df_srv_maestro, df_hh_maestro, df_tareas_base, df_comp_mayores, df_maestra_componentes
+        return df_mat_maestro, df_srv_maestro, df_hh_maestro, df_tareas_base, df_comp_mayores
     except Exception as e:
         st.error(f"Error procesando los datos locales. Detalle técnico: {e}")
         st.stop()
 
 # Cargar bases consolidadas
-df_materiales, df_servicios, df_hh, df_tareas_base, df_comp_mayores, df_maestra_componentes = cargar_arquitectura_datos()
+df_materiales, df_servicios, df_hh, df_tareas_base, df_comp_mayores = cargar_arquitectura_datos()
 
 # --- INTERFAZ DE USUARIO ---
 with st.sidebar:
@@ -120,6 +131,8 @@ for intervencion in intervenciones_activas:
             info = df_servicios[df_servicios['Codigo'] == cod]
         elif tipo == 'HH':
             info = df_hh[df_hh['Codigo'] == cod]
+        else:
+            continue
             
         if not info.empty:
             detalles_presupuesto.append({
@@ -165,16 +178,10 @@ with tab3:
         if st.checkbox("Rotor de primera de TP"): componentes_seleccionados.append("Rotor de primera de TP")
         if st.checkbox("Rotor de segunda de TP"): componentes_seleccionados.append("Rotor de segunda de TP")
 
-# --- 5. CÁLCULO DE COMPONENTES MAYORES (MIXTO MATERIAL/SERVICIO/HH) ---
+# --- 5. CÁLCULO DE COMPONENTES MAYORES ---
 for comp_padre in componentes_seleccionados:
-    if not df_maestra_componentes.empty:
-        comp_info = df_maestra_componentes[df_maestra_componentes['Nombre_Pantalla'] == comp_padre]
-        id_comp = comp_info.iloc[0]['ID_Componente'] if not comp_info.empty else comp_padre
-    else:
-        id_comp = comp_padre
-        
-    col_busqueda = 'ID_Componente' if 'ID_Componente' in df_comp_mayores.columns else 'Componente_Padre'
-    hijos = df_comp_mayores[df_comp_mayores[col_busqueda] == id_comp]
+    # Usamos directamente la columna Componente_Padre que agregaste a tu Excel
+    hijos = df_comp_mayores[df_comp_mayores['Componente_Padre'] == comp_padre]
     
     for _, fila in hijos.iterrows():
         cod = fila['Codigo_Elemento']
@@ -187,6 +194,8 @@ for comp_padre in componentes_seleccionados:
             info = df_servicios[df_servicios['Codigo'] == cod]
         elif tipo == 'HH':
             info = df_hh[df_hh['Codigo'] == cod]
+        else:
+            continue
             
         if not info.empty:
             detalles_presupuesto.append({
