@@ -64,9 +64,9 @@ def cargar_arquitectura_datos():
         
         # D. Procesar Libro de Configuración Manual (Excel)
         df_tareas_base = pd.read_excel('Configuracion_Overhaul.xlsx', sheet_name='Tareas_Base')
-        df_comp_mayores = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Componentes_Mayores')
-        df_srv_maestro = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Maestra_Servicios')
-        df_maestra_componentes = pd.read_excel('configuracion_overhaul.xlsx', sheet_name='Maestra_Componentes')
+        df_comp_mayores = pd.read_excel('Configuracion_Overhaul.xlsx', sheet_name='Componentes_Mayores')
+        df_srv_maestro = pd.read_excel('Configuracion_Overhaul.xlsx', sheet_name='Maestra_Servicios')
+        df_maestra_componentes = pd.read_excel('Configuracion_Overhaul.xlsx', sheet_name='Maestra_Componentes')
         
         df_srv_maestro = df_srv_maestro.rename(columns={'Codigo_Servicio': 'Codigo', 'Descripcion_Servicio': 'Descripcion', 'Tarifa_Unitaria': 'Costo_Unitario'})
         
